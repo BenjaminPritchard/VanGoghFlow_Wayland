@@ -50,16 +50,15 @@ In classical windowing systems—such as legacy **Win32** (Windows 95 through XP
 - If a program hung, was slow, or missed a redraw message, you saw the infamous **"Windows Solitaire trail"**—frozen window ghosting smeared across your display.
 - True, full-desktop transparency across multiple overlapping apps was virtually impossible without complex, flickering, CPU-heavy clipping hacks.
 
-```
-  Traditional Windowing (Win32 WM_PAINT / Classic X11)
-  ┌────────────────────────────────────────────────────────┐
-  │                   Shared Screen Buffer                 │
-  │   ┌─────────────┐                                      │
-  │   │ App Window  │ ──► InvalidateRect / WM_PAINT        │
-  │   │   (Ghosting!│     Each app draws directly to glass │
-  │   └──────┬──────┘                                      │
-  └──────────┼─────────────────────────────────────────────┘
-             ▼ (Lagging apps cause tearing & smearing)
+```mermaid
+flowchart TD
+    subgraph Traditional["Traditional Windowing (Win32 WM_PAINT / Classic X11)"]
+        direction TB
+        Buffer["Shared Screen Buffer (Direct Screen Memory)"]
+        App["App Window (Draws directly to glass)"]
+        App -->|"InvalidateRect / WM_PAINT"| Buffer
+        Buffer -.->|"Lagging apps miss redraw -> Solitaire Ghosting!"| Smear["Window Tearing & Smeared Trails"]
+    end
 ```
 
 ### The Modern Era: Compositors as 3D Scene Directors
@@ -69,41 +68,62 @@ Modern desktop environments—like **Wayland** and Windows with DWM (Desktop Win
 - Every frame (at 60Hz, 144Hz, or faster), the compositor takes all those individual off-screen textures, arranges them in 3D layers, blends them using the GPU's hardware alpha channels, and presents the combined frame to the display.
 - **Every frame is perfectly synchronized (VSync)**: Zero tearing, zero redraw storms, and zero ghosting.
 
-```
-  Modern Compositing (Wayland Compositors & DWM)
-  ┌───────────────┐     ┌───────────────┐     ┌────────────────────────┐
-  │  Code Editor  │     │  Web Browser  │     │   Van Gogh Flow HUD    │
-  │  (GPU Buffer) │     │  (GPU Buffer) │     │   (Translucent Buffer) │
-  └───────┬───────┘     └───────┬───────┘     └───────────┬────────────┘
-          │                     │                         │
-          └─────────────────────┼─────────────────────────┘
-                                ▼
-                   ┌────────────────────────┐
-                   │   WAYLAND COMPOSITOR   │ (GPU Blending & Alpha Shaders)
-                   └────────────┬───────────┘
-                                ▼
-                       Monitor (Teardrop-Free)
+```mermaid
+flowchart TD
+    App1["Code Editor<br/>(Private GPU Texture)"]
+    App2["Web Browser<br/>(Private GPU Texture)"]
+    HUD["Van Gogh Flow HUD<br/>(Translucent GPU Texture)"]
+
+    App1 --> Compositor["Wayland Compositor<br/>(Hardware EGL Blending & Alpha Shaders)"]
+    App2 --> Compositor
+    HUD --> Compositor
+
+    Compositor --> Display["Monitor<br/>(Tear-Free, VSync Synchronized)"]
 ```
 
 Because Wayland compositors natively blend surfaces on the GPU, **Van Gogh Flow for Wayland** can float full-screen visualizers across your workspace with absolute transparency, native refresh rates, and zero disruption to the applications underneath.
 
 ---
 
-## 🎨 The Three Iterations of Van Gogh Flow
+## 🎨 The Four Iterations of Van Gogh Flow
 
-The concept of an ambient, flow-inducing transparent desktop visualizer has evolved across three distinct generations, each engineered by **Benjamin Pritchard** to tackle the technical paradigms of its era.
+The concept of an ambient, flow-inducing transparent desktop visualizer has evolved across four distinct generations, each engineered by **Benjamin Pritchard** to tackle the technical paradigms of its era.
 
-```
-       1st Iteration (2019)                   2nd Iteration (2021)                   3rd Iteration (2026)
-  ┌─────────────────────────────┐        ┌─────────────────────────────┐        ┌─────────────────────────────┐
-  │         VanGoghFlow         │        │       VanGoghFlowGTK3       │        │     vangoflow_wayland       │
-  │     (Win32 / C# / CEF)      │  ───>  │   (Linux X11 / C / GTK3)    │  ───>  │  (Wayland / C++17 / GLES2)  │
-  │                             │        │                             │        │                             │
-  │ • Windows 10 DWM            │        │ • Linux X11 compositors     │        │ • Direct Wayland client     │
-  │ • WS_EX_TRANSPARENT         │        │ • GTK3 + WebKit2GTK         │        │ • zwlr_layer_shell_v1       │
-  │ • CefSharp (Embedded CEF)   │        │ • C11 + libappindicator3    │        │ • Native EGL & GLES2 GLSL   │
-  │ • YouTube video streams     │        │ • YouTube video streams     │        │ • Procedural GPU shaders    │
-  └─────────────────────────────┘        └─────────────────────────────┘        └─────────────────────────────┘
+```mermaid
+flowchart LR
+    subgraph I1["1st Iteration (2019)<br/>VanGoghFlow"]
+        direction TB
+        A1["Windows 10 DWM"]
+        A2["WS_EX_TRANSPARENT"]
+        A3["CefSharp / CEF"]
+        A4["YouTube Streams"]
+    end
+
+    subgraph I2["2nd Iteration (2021)<br/>VanGoghFlowGTK3"]
+        direction TB
+        B1["Linux X11 Compositors"]
+        B2["GTK3 + WebKit2GTK"]
+        B3["libappindicator3 Tray"]
+        B4["YouTube Streams"]
+    end
+
+    subgraph I3["3rd Iteration (2026)<br/>vangoghflow_wayland"]
+        direction TB
+        C1["Direct Wayland Client"]
+        C2["zwlr_layer_shell_v1"]
+        C3["Native EGL & GLES2"]
+        C4["Procedural GLSL Shaders"]
+    end
+
+    subgraph I4["4th Iteration (2026)<br/>VanGoghFlow_macOS"]
+        direction TB
+        D1["AppKit & Quartz Engine"]
+        D2["ignoresMouseEvents = YES"]
+        D3["Native Apple Metal MSL"]
+        D4["Spaces-Persistent HUD"]
+    end
+
+    I1 --> I2 --> I3 --> I4
 ```
 
 ### 1. Iteration 1: [VanGoghFlow (Win32)](https://github.com/benjaminPritchard/vanGoghFlow/)
@@ -137,39 +157,47 @@ The concept of an ambient, flow-inducing transparent desktop visualizer has evol
   * **Modular C++ Plugin Architecture**: Features an extensible plugin registry (`plugin.hpp`) with self-registering factory macros (`REGISTER_PLUGIN`). Adding new visualizers requires only implementing `init()`, `resize()`, and `render()`.
   * **Direct EGL & Native GLES2**: Binds EGL with 8-bit alpha channels (`EGL_ALPHA_SIZE, 8`) directly over `wl_egl_window`, eliminating Desktop OpenGL Core profile issues with point size and `#version 100` compatibility.
 
+### 4. Iteration 4: [VanGoghFlow for macOS](https://github.com/BenjaminPritchard/VanGoghFlow_macOS)
+* **Platform**: macOS 12 Monterey through macOS 15+ Sequoia (Apple Silicon & Intel)
+* **Language & Framework**: Objective-C++ / Modern C++17, AppKit, Apple Metal, MetalKit, QuartzCore
+* **Author**: Engineered by **Benjamin Pritchard**
+* **Architecture Breakthroughs**:
+  * **Native Metal GPU Pipeline**: Replaces OpenGL ES with Apple's low-overhead **Metal** framework (`CAMetalLayer`, `MTKView`). Procedural shaders execute directly on Apple Silicon's unified memory GPU architecture with sub-millisecond frame dispatch.
+  * **100% Click-Through Guarantee via AppKit**: Leverages `[window setIgnoresMouseEvents:YES]` at the window server level. Every pointer click, double-click, mouse drag, and scroll event immediately falls through to the foreground application.
+  * **Mission Control & Spaces Persistence**: Configured with `NSWindowCollectionBehaviorCanJoinAllSpaces | NSWindowCollectionBehaviorStationary | NSWindowCollectionBehaviorIgnoresCycle`. The visualizer stays pinned across desktop space swipes and Exposé/Mission Control transitions.
+  * **Runtime Metal Compilation**: Shaders compile directly in memory via `[device newLibraryWithSource:options:error:]`, enabling clean zero-dependency builds using only the standard Command Line Tools without requiring a multi-gigabyte Xcode installation.
+
 ---
 
 ## 🏛️ Architecture of Van Gogh Flow for Wayland
 
 The software is designed as a direct, high-performance Wayland EGL client without intermediary windowing toolkits:
 
-```
-  ┌────────────────────────────────────────────────────────────────────────┐
-  │                 Van Gogh Flow Wayland (Single Binary)                  │
-  │                                                                        │
-  │   ┌────────────────────────────────────────────────────────────────┐   │
-  │   │                       Driver Program                           │   │
-  │   │                (vangoghflow_wayland.cpp)                       │   │
-  │   │                                                                │   │
-  │   │  • wl_display & wl_registry connection                         │   │
-  │   │  • zwlr_layer_shell_v1 (Layer: OVERLAY, Anchors: Top/Bot/L/R) │   │
-  │   │  • Empty wl_region (100% Click-Through Guarantee)              │   │
-  │   │  • EGLDisplay / EGLContext (EGL_ALPHA_SIZE: 8, GLES2)          │   │
-  │   │  • VSync Frame Pacing (wl_surface_frame callback loop)         │   │
-  │   └───────────────────────────────┬────────────────────────────────┘   │
-  │                                   │                                    │
-  │                                   ▼                                    │
-  │   ┌────────────────────────────────────────────────────────────────┐   │
-  │   │                   Modular Plugin Engine                        │   │
-  │   │                       (plugin.hpp)                             │   │
-  │   │                                                                │   │
-  │   │  [aurora]         [starfield]        [matrix]      [fireflies] │   │
-  │   │  GLSL Plasma      GLSL 3D Warp       GLSL Rain     GLSL Orbs   │   │
-  │   └────────────────────────────────────────────────────────────────┘   │
-  └───────────────────────────────────┬────────────────────────────────────┘
-                                      │
-                                      ▼
-                      Wayland Compositor (EGL / wlroots)
+```mermaid
+flowchart TD
+    subgraph Binary["Van Gogh Flow Wayland (Single Binary)"]
+        direction TB
+        subgraph Driver["Driver Program (vangoghflow_wayland.cpp)"]
+            direction TB
+            W1["wl_display & wl_registry connection"]
+            W2["zwlr_layer_shell_v1 (Layer: OVERLAY, Anchors: Top/Bot/L/R)"]
+            W3["Empty wl_region (100% Click-Through Guarantee)"]
+            W4["EGLDisplay / EGLContext (EGL_ALPHA_SIZE: 8, GLES2)"]
+            W5["VSync Frame Pacing (wl_surface_frame callback loop)"]
+        end
+
+        Driver --> Engine["Modular Plugin Engine (plugin.hpp)"]
+
+        subgraph Engine["Modular Plugin Engine (plugin.hpp)"]
+            direction LR
+            P1["aurora<br/>(GLSL Plasma)"]
+            P2["starfield<br/>(GLSL 3D Warp)"]
+            P3["matrix<br/>(GLSL Rain)"]
+            P4["fireflies<br/>(GLSL Orbs)"]
+        end
+    end
+
+    Binary --> Compositor["Wayland Compositor (EGL / wlroots)"]
 ```
 
 1. **Protocol Negotiation (`zwlr_layer_shell_v1`)**:
