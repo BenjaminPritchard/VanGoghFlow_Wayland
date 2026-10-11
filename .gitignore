@@ -1,0 +1,5 @@
+PROJECT_NOTES.md
+*.o
+**/*.o
+vangoghflow_wayland
+GEMINI.md
